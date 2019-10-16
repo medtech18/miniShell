@@ -1,6 +1,6 @@
 #ifndef SHELLENGINE_H
 #define SHELLENGINE_H
-
+#define buffer 10
 
 int execcmdredirect(char* cmd,char* fichier,int mode,int cl);
 

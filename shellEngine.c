@@ -13,7 +13,7 @@
 //fonction qui execute la commande passer en parametre dans un fichier en mode passer en paramettre et c1 pour definir la lecture ou ecriture 
 int execcmdredirect(char* cmd,char* fichier,int mode,int cl)
 {
-  char* com[10];
+  char* com[buffer];
   Lire_commande(cmd,com," ");
   int f,vrcpu;
   int vretour=0;
@@ -105,7 +105,7 @@ int execcmdredirect(char* cmd,char* fichier,int mode,int cl)
 
 
 //cette fonction execute la commande et cree un pipe pour la prochaine commande
-int execcmdnextpipe(char* com[10],int f0[2])
+int execcmdnextpipe(char* com[buffer],int f0[2])
 {
   int f1[2];
   pipe(f1);
@@ -147,7 +147,7 @@ int execcmdnextpipe(char* com[10],int f0[2])
 }    
 
  //cette fonction execute la derniere commande avec le pipe f0 si il existe sinon ca sera une execution sans pipe normal
-int execcmdlastpipe(char* com[10],int f0[2])
+int execcmdlastpipe(char* com[buffer],int f0[2])
 {
   switch (fork()){
     case -1 :
@@ -175,7 +175,7 @@ int execcmdlastpipe(char* com[10],int f0[2])
 //fonction execute la commande cmd et determine si cest le dernier pipe en fonction de la valeur de nextpipe passé en parametre
 int execlignepipe(char* cmd,int f0[2],_Bool nextpipe)
 {
-  char* com[10];
+  char* com[buffer];
   int retour =0;
   Lire_commande(cmd,com," ");
   if (strcmp(com[0], "cd")==0){
@@ -264,7 +264,7 @@ int execlignepipe(char* cmd,int f0[2],_Bool nextpipe)
 
 
 //execute cmd et fait le traitement si il y a un pipe
-  char *com[10];
+  char *com[buffer];
 int execpip(char* cmd)
 {
   int nb_pip;
@@ -297,10 +297,10 @@ int execligneredirect(char* cmd)
   int nbp;
   int var=0;
   int retour=0;
-  char* redil[10];
-  char* redir[10];
-  char* point[10];
-  char* nomfichier[10];
+  char* redil[buffer];
+  char* redir[buffer];
+  char* point[buffer];
+  char* nomfichier[buffer];
   nbl=Lire_commande(cmd,redil,"<");
   for (int j=0;j<nbl;j++)
   {
@@ -328,7 +328,7 @@ int execligneredirect(char* cmd)
     if(j<nbl-1)
     {
       var=1;
-      char* redir2[10];
+      char* redir2[buffer];
       Lire_commande(redil[j+1],redir2,">");
       nbp=Lire_commande(redir[nbr-1],point,".");
       
@@ -358,7 +358,7 @@ int execligneredirect(char* cmd)
 }
 int execor(char* cmd,int exec)
 {
-  char *com[10];
+  char *com[buffer];
   int nb_or,retour;
   nb_or=Lire_commande(cmd,com,"||");
   int i=0;
@@ -374,7 +374,7 @@ int execor(char* cmd,int exec)
   return exec;
 }
 int execand(char* cmd){
-  char *com[10];
+  char *com[buffer];
   int nb_and,vrcpu;
   int vretour=0;
   int exec=0;
@@ -387,7 +387,7 @@ int execand(char* cmd){
 }
 int execpvirg(char* cmd)
 {
-  char *com[10];
+  char *com[buffer];
     int nb_pvirg;
     nb_pvirg=Lire_commande(cmd,com,";");
   for (int i=0;i<nb_pvirg;i++){
@@ -399,8 +399,8 @@ int execpvirg(char* cmd)
 void mon_shell()
 {
     int no, status,nbpipe;
-    char cmd[100];
-    char *com[10];
+    char cmd[buffer];
+    char *com[buffer];
      signal(SIGINT,SIG_IGN);
     printf("Voici mon shell, taper Q pour sortir\n");
     printf("> ");
