@@ -8,10 +8,11 @@
 #include <unistd.h> // for close
 #include <string.h>
 #include "parser.h"
+#include <assert.h>
 #include "shellEngine.h"
 
-
-int execcmdnextpipe(char* com[buffer],int f0[2]){//cette fonction execute la commande et cree un pipe pour la prochaine commande
+pid_t ppid;
+int execcmdnextpipe(char* com[buffer],int f0[2],int f){//cette fonction execute la commande et cree un pipe pour la prochaine commande
   int f1[2];
   pipe(f1);
   int dip=fork();
@@ -22,7 +23,6 @@ int execcmdnextpipe(char* com[buffer],int f0[2]){//cette fonction execute la com
         exit(-1);
     case 0 :
     
-  printf("%d\n\n\n\n",f0[0]);
       if(f0[0]!=0)
         {
           close(0);
@@ -31,6 +31,8 @@ int execcmdnextpipe(char* com[buffer],int f0[2]){//cette fonction execute la com
           close(f0[1]);
           close(f0[0]);
         }
+        if(f!=0)
+          close(f);
         
       close(1);
       dup(f1[1]);
@@ -138,7 +140,7 @@ int execlignepipe(char* cmd,int f0[2],_Bool nextpipe,int f1){//fonction execute 
       com[0]="env";
       if(nextpipe)
       {
-        execcmdnextpipe(com,f0);
+        execcmdnextpipe(com,f0,f1);
       }else
       {
       execcmdlastpipe(com,f0,f1);
@@ -163,7 +165,7 @@ int execlignepipe(char* cmd,int f0[2],_Bool nextpipe,int f1){//fonction execute 
   else
   {
     if(nextpipe){
-      execcmdnextpipe(com,f0);
+      execcmdnextpipe(com,f0,f1);
     }else
     {
       execcmdlastpipe(com,f0,f1);
@@ -172,10 +174,7 @@ int execlignepipe(char* cmd,int f0[2],_Bool nextpipe,int f1){//fonction execute 
     return retour;            
 }
 
-
-
-
-int execpip(char* cmd,int f0,int f1){//execute cmd et fait le traitement si il y a un pipe
+int  execpip(char* cmd,int f0,int f1){//execute cmd et fait le traitement si il y a un pipe
   char *com[buffer];
   int nb_pip;
   int vrcpu;
@@ -188,7 +187,6 @@ int execpip(char* cmd,int f0,int f1){//execute cmd et fait le traitement si il y
       vretour=1;
       
   }
-  
   if(f[0]!=0){
     close(f[0]);
     if(f[1]!=1)
@@ -196,94 +194,58 @@ int execpip(char* cmd,int f0,int f1){//execute cmd et fait le traitement si il y
   }
   if(f1!=0)
   close(f1);
-  while(wait(&vrcpu)!=-1)
+  while(waitpid(0, &vrcpu, 0)!=-1)
     if (vrcpu!=0)
-      vretour=1;     
+    {
+      vretour=1;  
+    }    
   return vretour;
 }
 
-int execcmdredirect(char* cmd,char* fichier,int mode,int cl){//fonction qui execute la commande passer en parametre dans un fichier en mode passer en paramettre et c1 pour definir la lecture ou ecriture 
-  char* com[buffer];
-  Lire_commande(cmd,com," ");
-  int f,vrcpu;
-  int vretour=0;
-  int execcmd=0;
-  f=open(fichier,mode,0777);
-  if(cl==0)
-  vretour=execpip(cmd,f,0);
-  else
-  {
-    vretour=execpip(cmd,0,f);
-  }
-  
-  close(f);
 
-  return vretour;
-}
 int execligneredirect(char* cmd)//execute une commande qui contien des redirection et retour 0 si tout les commande sont bien passé sinon retourne 1
 {
   int nbl;
   int nbr;
-  int nbp;
-  int var=0;
   int retour=0;
   char* redil[buffer];
   char* redir[buffer];
-  char* point[buffer];
   char* nomfichier[buffer];
+  int f0,f1;
+  f0=0; //leture
+  f1=0; // lecrtiture instalisation a zero
   nbl=Lire_commande(cmd,redil,"<");
   for (int j=0;j<nbl;j++)
   {
     nbr=Lire_commande(redil[j],redir,">");
     for(int l=0;l<nbr-1;l++)
     {
-      var=1;
-      nbp=Lire_commande(redir[l],point,".");
-      if(nbp>1)
-      {
-        Lire_commande(redir[l],nomfichier," ");//supprimer les espace du fichier txt pour eviter les erreurs
-        if(execcmdredirect(redir[l+1],nomfichier[0], O_RDONLY,0)!=0)retour=1;
-      }else
-      {
-        nbp=Lire_commande(redir[l+1],point,".");
-        if(nbp>1){
-          Lire_commande(redir[l+1],nomfichier," ");//supprimer les espace du fichier txt pour eviter les erreurs
-          if(execcmdredirect(redir[l],nomfichier[0], O_WRONLY | O_CREAT | O_TRUNC,1)!=0)retour=1;
-        }else{
-          printf("erreur redirection >\n");
-          retour=1;
-        }
+      if(f1!=0){
+        close(f1);
+        
       }
+      Lire_commande(redir[l+1],nomfichier," ");
+      f1=open(nomfichier[0],O_WRONLY | O_CREAT | O_TRUNC,0777);
     }
-    if(j<nbl-1)
+   
+  }
+   if(nbl>1)
     {
-      var=1;
-      char* redir2[buffer];
-      Lire_commande(redil[j+1],redir2,">");
-      nbp=Lire_commande(redir[nbr-1],point,".");
       
-      if(nbp>1)
+      Lire_commande(redil[nbl-1],nomfichier," ");
+      f0=open(nomfichier[0],O_RDONLY,0777);
+      if(f0<0)
       {
-        Lire_commande(redir[nbr-1],nomfichier," ");
-        if(execcmdredirect(redir2[0],nomfichier[0],O_WRONLY | O_CREAT | O_TRUNC,1)!=0)retour=1;
-      }else
-      {
-        nbp=Lire_commande(redir2[0],point,".");
-        if(nbp>1)
-        {
-          Lire_commande(redir2[0],nomfichier," ");
-          if(execcmdredirect(redir[nbr-1], nomfichier[0],O_RDONLY,0)!=0)retour=1;
-        }else
-        {
-          printf("erreur redirection <\n");
-          retour=1;
-        }
+        printf("erreur ouverture du fichier %s\n",nomfichier[0]);
+        f0=0;
       }
+
     }
-  }
-  if (var==0){
-    retour=execpip(cmd,0,0);
-  }
+  Lire_commande(redil[0],redil,">");
+  retour=execpip(redil[0],f0,f1);
+    if(f1>0){
+        close(f1);
+      }   
   return retour;       
 }
 int execor(char* cmd,int exec){
@@ -325,16 +287,66 @@ int execpvirg(char* cmd){
   }
   return 0;
 }
+
+void stopexecquit(int sig) {
+    pid_t pid = getpid();
+
+    assert(sig == SIGQUIT);
+   
+    if (ppid != pid) 
+
+      _exit(0);
+}
+void stopexecint(int sig) {
+    pid_t pid = getpid();
+
+    assert(sig == SIGINT);
+   
+    if (ppid != pid) 
+      _exit(0);
+
+}
+int execbg(char* cmd){
+  int retour =0;
+  char *com[10];
+  int nb;
+  Lire_commande(cmd,com,"&&");
+  if(com[0]==(char *)0)return 1;
+  if (strstr(com[0],"&")!=NULL){
+    Lire_commande(com[0],com,"&");
+    Lire_commande(com[0],com," ");
+    retour =1;
+    switch (fork()){
+      case -1 :
+          perror("fork"); 
+          exit(-1);
+      case 0 :
+        setpgid(getpid(),getpid());
+        if(execvp(com[0],com)!=0){
+          perror("erreur commande\n");
+          exit(-1); 
+        }
+            
+      default :;
+  }
+
+  }
+  
+  return retour;
+}
 void mon_shell(){
     int no, status,nbpipe;
     char cmd[100];
     char *com[buffer];
-     signal(SIGINT,SIG_IGN);
+    ppid=getpid();
+    signal(SIGQUIT,stopexecquit);
+    signal(SIGINT,stopexecint);
     printf("Voici mon shell, taper Q pour sortir\n");
     printf("> ");
     gets(cmd);
     while (strcmp(cmd,"Q")!=0){
-        execpvirg(cmd);
+        if(execbg(cmd)==0)
+          execpvirg(cmd);
           
           printf("\n> ");
           
