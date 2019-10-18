@@ -18,6 +18,10 @@ int execor(char* cmd,int exec);
 
 int execpvirg(char* cmd);
 
+void stopexecquit(int sig);
+
+void stopexecint(int sig);
+
 void mon_shell();
 
 #endif

@@ -7,9 +7,12 @@
 #include <fcntl.h> // for open
 #include <unistd.h> // for close
 #include <string.h>
+#include <unistd.h> 
+#include <assert.h>
 #include "parser.h"
 #include "shellEngine.h"
 
+pid_t ppid;
 //fonction qui execute la commande passer en parametre dans un fichier en mode passer en paramettre et c1 pour definir la lecture ou ecriture 
 int execcmdredirect(char* cmd,char* fichier,int mode,int cl)
 {
@@ -90,7 +93,7 @@ int execcmdredirect(char* cmd,char* fichier,int mode,int cl)
           }
           close(f);
       default : 
-        while(wait(&vrcpu)!=-1)
+        while(waitpid(0, &vrcpu, 0)!=-1)
           if (vrcpu!=0)
           {
             vretour=1;  
@@ -283,7 +286,7 @@ int execpip(char* cmd)
     close(f[0]);
     close(f[1]);
   }
-  while(wait(&vrcpu)!=-1)
+  while(waitpid(0, &vrcpu, 0)!=-1)
     if (vrcpu!=0)
       vretour=1;     
   return vretour;
@@ -396,20 +399,70 @@ int execpvirg(char* cmd)
   }
   return 0;
 }
+void stopexecquit(int sig) {
+    pid_t pid = getpid();
+
+    assert(sig == SIGQUIT);
+   
+    if (ppid != pid) 
+
+      _exit(0);
+}
+void stopexecint(int sig) {
+    pid_t pid = getpid();
+
+    assert(sig == SIGINT);
+   
+    if (ppid != pid) 
+      _exit(0);
+
+}
+int execbg(char* cmd){
+  int retour =0;
+  char *com[10];
+  int nb;
+  Lire_commande(cmd,com,"&&");
+  if(com[0]==(char *)0)return 1;
+  if (strstr(com[0],"&")!=NULL){
+    Lire_commande(com[0],com,"&");
+    Lire_commande(com[0],com," ");
+    retour =1;
+    switch (fork()){
+      case -1 :
+          perror("fork"); 
+          exit(-1);
+      case 0 :
+        setpgid(getpid(),getpid());
+        if(execvp(com[0],com)!=0){
+          perror("erreur commande\n");
+          exit(-1); 
+        }
+            
+      default :;
+  }
+
+  }
+  
+  return retour;
+}
 void mon_shell()
 {
     int no, status,nbpipe;
     char cmd[100];
     char *com[10];
-     signal(SIGINT,SIG_IGN);
+    
+    ppid=getpid();
+    signal(SIGQUIT,stopexecquit);
+    signal(SIGINT,stopexecint);
     printf("Voici mon shell, taper Q pour sortir\n");
     printf("> ");
     gets(cmd);
     while (strcmp(cmd,"Q")!=0){
+        if(execbg(cmd)==0)
         execpvirg(cmd);
           
-          printf("\n> ");
-          
-          gets(cmd);
+        printf("\n> ");
+        
+        gets(cmd);
     }
 }
