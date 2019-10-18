@@ -24,3 +24,5 @@ run :
 clean: clean
 	rm -rf $(EXEC)
 	rm -rf *.o
+
+	
